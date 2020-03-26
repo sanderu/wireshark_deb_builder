@@ -20,11 +20,12 @@ website_src='/tmp/wireshark_dl_source.txt'
 sanity_check () {
     # Are we root?
     if [ ${UID} -ne 0 ]; then
-        logger -t user.info -s "${SCRIPTNAME}: you need to be root for this to run."
+        logger -t user.info -s "${SCRIPTNAME}: you need to run this script with sudo."
+        exit 1
     fi
 
     # Ensure all needed packages are installed:
-    apt install wget xz-utils dpkg-dev qtbase5-dev qtbase5-dev-tools qttools5-dev qttools5-dev-tools qtmultimedia5-dev libqt5svg5-dev libpcap0.8-dev flex libz-dev debhelper po-debconf libtool python3-ply libc-ares-dev xsltproc dh-python docbook-xsl docbook-xml libxml2-utils libpcre3-dev libcap-dev bison quilt libparse-yapp-perl libgnutls28-dev libgcrypt-dev libkrb5-dev liblua5.2-dev libsmi2-dev libmaxminddb-dev libsystemd-dev libnl-genl-3-dev libnl-route-3-dev asciidoctor cmake libsbc-dev libnghttp2-dev libssh-gcrypt-dev liblz4-dev libsnappy-dev libspandsp-dev libxml2-dev libzstd-dev libbrotli-dev libspeexdsp-dev
+    apt install -y wget xz-utils dpkg-dev qtbase5-dev qtbase5-dev-tools qttools5-dev qttools5-dev-tools qtmultimedia5-dev libqt5svg5-dev libpcap0.8-dev flex libz-dev debhelper po-debconf libtool python3-ply libc-ares-dev xsltproc dh-python docbook-xsl docbook-xml libxml2-utils libpcre3-dev libcap-dev bison quilt libparse-yapp-perl libgnutls28-dev libgcrypt-dev libkrb5-dev liblua5.2-dev libsmi2-dev libmaxminddb-dev libsystemd-dev libnl-genl-3-dev libnl-route-3-dev asciidoctor cmake libsbc-dev libnghttp2-dev libssh-gcrypt-dev liblz4-dev libsnappy-dev libspandsp-dev libxml2-dev libzstd-dev libbrotli-dev libspeexdsp-dev
 
     # Check if BUILD_DIR already exists:
     if [ -d ${BUILD_DIR} ]; then
