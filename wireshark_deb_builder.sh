@@ -64,7 +64,7 @@ sanity_check
 wget ${URL} -O ${website_src}
 
 # Get newest version of tarball
-NEWEST_WIRESHARK=$( basename $( grep 'Source Code' ${website_src} | head -n1 | awk -F 'href="' '{print $2}' | awk -F '">Source' '{print $1}' ) )
+NEWEST_WIRESHARK=$( basename $( grep 'Source' ${website_src} | grep 'xz' | head -n1 | awk -F 'href="' '{print $2}' | awk -F '">Source' '{print $1}' ) )
 DIRECTORY=$( echo ${NEWEST_WIRESHARK} | awk -F '.tar' '{print $1}' )
 
 # Download newest wireshark source code:
