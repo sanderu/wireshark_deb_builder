@@ -22,7 +22,7 @@ website_src='/tmp/wireshark_dl_source.txt'
 # FUNCTIONS #
 #############
 
-sanity_check () {
+_sanity_checks () {
     # Are we root?
     if [ ${UID} -ne 0 ]; then
         logger -t user.info -s "${SCRIPTNAME}: you need to run this script with sudo."
@@ -41,53 +41,95 @@ sanity_check () {
     fi
 
     # Check if debpackages directory exists:
-    if [ -d ${DEB_DIR} ]; then
-        rm -rf ${DEB_DIR}
-        mkdir ${DEB_DIR}
-    else
+    if [ ! -d ${DEB_DIR} ]; then
         mkdir ${DEB_DIR}
     fi
-    chown ${USER}:${USER} ${DEB_DIR}
 }
 
+_deb_dirs () {
+    DL_VERS=$1
+    if [ -d ${DEB_DIR}/${DL_VERS} ]; then
+        rm -rf ${DEB_DIR}/${DL_VERS}
+        mkdir ${DEB_DIR}/${DL_VERS}
+    else
+        mkdir ${DEB_DIR}/${DL_VERS}
+    fi
+    chown -R ${USER}:${USER} ${DEB_DIR}
+}
+
+_create_deb () {
+    DL_VERS=$1
+    # Get and parse download site:
+    wget ${URL} -O ${website_src}
+
+    # Get newest version of tarball
+    NEWEST_WIRESHARK=$( basename $( grep Source ${website_src} | sed -e 's/>/>\n/g' | grep xz | awk -F '<a href="' '{print $2}' | awk -F '">' '{print $1}' | grep ${DL_VERS} ) )
+    DIRECTORY=$( echo ${NEWEST_WIRESHARK} | awk -F '.tar' '{print $1}' )
+
+    # Download newest wireshark source code:
+    wget ${DL_URL}/${NEWEST_WIRESHARK} -O ${BUILD_DIR}/${NEWEST_WIRESHARK}
+
+    # Go and unpack xz-compressed tarball
+    cd ${BUILD_DIR}
+    unxz ${NEWEST_WIRESHARK}
+
+    # And unpack tarball:
+    tar -xvf ${DIRECTORY}.tar
+
+    # Now go and create the deb-packages:
+    cd ${DIRECTORY}
+    if [ ! -d debian ]; then
+        cp -a packaging/debian ${BUILD_DIR}/${DIRECTORY}/
+    fi
+    dpkg-buildpackage -us -uc -rfakeroot
+
+    # Backup deb-files to ${DIRECTORY}
+    cp ${BUILD_DIR}/*.deb ${DEB_DIR}/
+
+    # Give commandline hint to install wireshark:
+    LIST_OF_FILES=$( find ${DEB_DIR}/ -type f -name "*.deb" ! -name "*-dev*.deb" ! -name "*-dbg*.deb" | tr '\n' ' ' )
+    echo "To install wireshark without debug/development tools, run:"
+    echo "sudo dpkg -i ${LIST_OF_FILES}"
+}
+
+_show_usage () {
+    echo "Usage: ${SCRIPTNAME} [-3|-4]"
+    echo '       -3 : Wireshark 3'
+    echo '       -4 : Wireshark 4'
+}
 
 ################
 # MAIN PROGRAM #
 ################
 
+_sanity_checks
+
 # Syslog that we start working
 logger -t user.info -s "${SCRIPTNAME}: Started."
 
-sanity_check
-
-# Get and parse download site:
-wget ${URL} -O ${website_src}
-
-# Get newest version of tarball
-NEWEST_WIRESHARK=$( basename $( grep 'Source' ${website_src} | grep 'xz' | head -n1 | awk -F 'href="' '{print $2}' | awk -F '">Source' '{print $1}' ) )
-DIRECTORY=$( echo ${NEWEST_WIRESHARK} | awk -F '.tar' '{print $1}' )
-
-# Download newest wireshark source code:
-wget ${DL_URL}/${NEWEST_WIRESHARK} -O ${BUILD_DIR}/${NEWEST_WIRESHARK}
-
-# Go and unpack xz-compressed tarball
-cd ${BUILD_DIR}
-unxz ${NEWEST_WIRESHARK}
-
-# And unpack tarball:
-tar -xvf ${DIRECTORY}.tar
-
-# Now go and create the deb-packages:
-cd ${DIRECTORY}
-dpkg-buildpackage -us -uc -rfakeroot
-
-# Backup deb-files to ${DIRECTORY}
-cp ${BUILD_DIR}/*.deb ${DEB_DIR}/
-
-# Give commandline hint to install wireshark:
-LIST_OF_FILES=$( find ${DEB_DIR}/ -type f -name "*.deb" ! -name "*-dev*.deb" ! -name "*-dbg*.deb" | tr '\n' ' ' )
-echo "To install wireshark without debug/development tools, run:"
-echo "sudo dpkg -i ${LIST_OF_FILES}"
+while getopts "34" ARGUMENT; do
+    case "${ARGUMENT}" in
+        3)
+            # Distro for which symbol-file will be created
+            DL_VERS="wireshark-3"
+            _deb_dirs ${DL_VERS}
+            _create_deb ${DL_VERS}
+            ;;
+        4)
+            # Distro for which symbol-file will be created
+            DL_VERS="wireshark-4"
+            _deb_dirs ${DL_VERS}
+            _create_deb ${DL_VERS}
+            ;;
+        *)
+            # If nothing or anything else is used, show usage
+            _show_usage
+            ;;
+    esac
+done
 
 # Syslog that we are finished working
 logger -t user.info -s "${SCRIPTNAME}: Done."
+
+
+
